@@ -163,7 +163,6 @@ public class TruelistClient : IDisposable
         CancellationToken cancellationToken)
     {
         var maxAttempts = _options.MaxRetries + 1;
-        HttpResponseMessage? lastResponse = null;
 
         for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
@@ -174,54 +173,74 @@ public class TruelistClient : IDisposable
             }
 
             using var request = requestFactory();
-            lastResponse = await _httpClient.SendAsync(request, cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
 
-            if (lastResponse.StatusCode == HttpStatusCode.Unauthorized)
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
+                response.Dispose();
                 throw new AuthenticationException();
             }
 
-            if (lastResponse.StatusCode == (HttpStatusCode)429)
+            if (response.StatusCode == (HttpStatusCode)429)
             {
-                if (attempt < maxAttempts - 1) continue;
+                if (attempt < maxAttempts - 1)
+                {
+                    response.Dispose();
+                    var backoff = TimeSpan.FromMilliseconds(Math.Pow(2, attempt) * 500);
+                    await Task.Delay(backoff, cancellationToken);
+                    continue;
+                }
 
-                var retryAfter = lastResponse.Headers.RetryAfter?.Delta?.Seconds;
-                throw retryAfter.HasValue
-                    ? new RateLimitException("Rate limit exceeded.", (int)retryAfter.Value)
-                    : new RateLimitException();
+                using (response)
+                {
+                    var retryAfter = response.Headers.RetryAfter?.Delta?.Seconds;
+                    throw retryAfter.HasValue
+                        ? new RateLimitException("Rate limit exceeded.", (int)retryAfter.Value)
+                        : new RateLimitException();
+                }
             }
 
-            if (lastResponse.StatusCode >= HttpStatusCode.InternalServerError)
+            if (response.StatusCode >= HttpStatusCode.InternalServerError)
             {
-                if (attempt < maxAttempts - 1) continue;
+                if (attempt < maxAttempts - 1)
+                {
+                    response.Dispose();
+                    continue;
+                }
 
-                var body = await lastResponse.Content.ReadAsStringAsync(
+                using (response)
+                {
+                    var body = await response.Content.ReadAsStringAsync(
 #if !NETSTANDARD2_1
-                    cancellationToken
+                        cancellationToken
 #endif
-                );
-                throw new ApiException(
-                    $"Server error: {(int)lastResponse.StatusCode}",
-                    (int)lastResponse.StatusCode,
-                    body
-                );
+                    );
+                    throw new ApiException(
+                        $"Server error: {(int)response.StatusCode}",
+                        (int)response.StatusCode,
+                        body
+                    );
+                }
             }
 
-            if (!lastResponse.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
-                var body = await lastResponse.Content.ReadAsStringAsync(
+                using (response)
+                {
+                    var body = await response.Content.ReadAsStringAsync(
 #if !NETSTANDARD2_1
-                    cancellationToken
+                        cancellationToken
 #endif
-                );
-                throw new ApiException(
-                    $"API error: {(int)lastResponse.StatusCode}",
-                    (int)lastResponse.StatusCode,
-                    body
-                );
+                    );
+                    throw new ApiException(
+                        $"API error: {(int)response.StatusCode}",
+                        (int)response.StatusCode,
+                        body
+                    );
+                }
             }
 
-            return lastResponse;
+            return response;
         }
 
         throw new TruelistException("Request failed after all retry attempts.");
@@ -229,11 +248,15 @@ public class TruelistClient : IDisposable
 
     private static async Task<T> DeserializeAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
     {
-        var json = await response.Content.ReadAsStringAsync(
+        string json;
+        using (response)
+        {
+            json = await response.Content.ReadAsStringAsync(
 #if !NETSTANDARD2_1
-            cancellationToken
+                cancellationToken
 #endif
-        );
+            );
+        }
 
         try
         {
