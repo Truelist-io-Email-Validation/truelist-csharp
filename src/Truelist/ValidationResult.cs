@@ -8,58 +8,82 @@ namespace Truelist;
 public record ValidationResult
 {
     /// <summary>
-    /// The validation state: valid, invalid, risky, or unknown.
+    /// The email address that was validated.
     /// </summary>
-    [JsonPropertyName("state")]
+    [JsonPropertyName("address")]
+    public string Email { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The domain of the email address.
+    /// </summary>
+    [JsonPropertyName("domain")]
+    public string Domain { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The canonical (local) part of the email address.
+    /// </summary>
+    [JsonPropertyName("canonical")]
+    public string? Canonical { get; init; }
+
+    /// <summary>
+    /// The MX record for the domain.
+    /// </summary>
+    [JsonPropertyName("mx_record")]
+    public string? MxRecord { get; init; }
+
+    /// <summary>
+    /// The first name associated with the email, if available.
+    /// </summary>
+    [JsonPropertyName("first_name")]
+    public string? FirstName { get; init; }
+
+    /// <summary>
+    /// The last name associated with the email, if available.
+    /// </summary>
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; init; }
+
+    /// <summary>
+    /// The validation state: ok, email_invalid, accept_all, or unknown.
+    /// </summary>
+    [JsonPropertyName("email_state")]
     public string State { get; init; } = string.Empty;
 
     /// <summary>
     /// The validation sub-state providing additional detail.
     /// </summary>
-    [JsonPropertyName("sub_state")]
+    [JsonPropertyName("email_sub_state")]
     public string SubState { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The timestamp when the email was verified.
+    /// </summary>
+    [JsonPropertyName("verified_at")]
+    public string? VerifiedAt { get; init; }
 
     /// <summary>
     /// A suggested correction for the email address, if any.
     /// </summary>
-    [JsonPropertyName("suggestion")]
+    [JsonPropertyName("did_you_mean")]
     public string? Suggestion { get; init; }
 
     /// <summary>
-    /// Whether the email address belongs to a free email provider.
-    /// </summary>
-    [JsonPropertyName("free_email")]
-    public bool FreeEmail { get; init; }
-
-    /// <summary>
-    /// Whether the email address is a role-based address (e.g., info@, support@).
-    /// </summary>
-    [JsonPropertyName("role")]
-    public bool Role { get; init; }
-
-    /// <summary>
-    /// Whether the email address is from a disposable email provider.
-    /// </summary>
-    [JsonPropertyName("disposable")]
-    public bool Disposable { get; init; }
-
-    /// <summary>
-    /// Returns true if the email is valid (state == "valid").
+    /// Returns true if the email is valid (state == "ok").
     /// </summary>
     [JsonIgnore]
-    public bool IsValid => string.Equals(State, "valid", StringComparison.OrdinalIgnoreCase);
+    public bool IsValid => string.Equals(State, "ok", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Returns true if the email is invalid (state == "invalid").
+    /// Returns true if the email is invalid (state == "email_invalid").
     /// </summary>
     [JsonIgnore]
-    public bool IsInvalid => string.Equals(State, "invalid", StringComparison.OrdinalIgnoreCase);
+    public bool IsInvalid => string.Equals(State, "email_invalid", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Returns true if the email is risky (state == "risky").
+    /// Returns true if the domain accepts all addresses (state == "accept_all").
     /// </summary>
     [JsonIgnore]
-    public bool IsRisky => string.Equals(State, "risky", StringComparison.OrdinalIgnoreCase);
+    public bool IsAcceptAll => string.Equals(State, "accept_all", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Returns true if the email state is unknown (state == "unknown").
@@ -68,32 +92,14 @@ public record ValidationResult
     public bool IsUnknown => string.Equals(State, "unknown", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Returns true if the email belongs to a free email provider.
+    /// Returns true if the email is from a disposable email provider (sub_state == "is_disposable").
     /// </summary>
     [JsonIgnore]
-    public bool IsFreeEmail => FreeEmail;
+    public bool IsDisposable => string.Equals(SubState, "is_disposable", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Returns true if the email is a role-based address.
+    /// Returns true if the email is a role-based address (sub_state == "is_role").
     /// </summary>
     [JsonIgnore]
-    public bool IsRole => Role;
-
-    /// <summary>
-    /// Returns true if the email is from a disposable email provider.
-    /// </summary>
-    [JsonIgnore]
-    public bool IsDisposable => Disposable;
-
-    /// <summary>
-    /// Checks if the email is valid, optionally treating risky emails as valid.
-    /// </summary>
-    /// <param name="allowRisky">If true, both "valid" and "risky" states are considered valid.</param>
-    /// <returns>True if the email passes validation per the given criteria.</returns>
-    public bool IsValidEmail(bool allowRisky = false)
-    {
-        if (IsValid) return true;
-        if (allowRisky && IsRisky) return true;
-        return false;
-    }
+    public bool IsRole => string.Equals(SubState, "is_role", StringComparison.OrdinalIgnoreCase);
 }

@@ -31,6 +31,18 @@ public class TruelistClientTests : IDisposable
         return new TruelistClient("test-api-key", options ?? new TruelistOptions(), _httpClient);
     }
 
+    private const string ValidResponseJson = @"{""emails"":[{""address"":""user@example.com"",""domain"":""example.com"",""canonical"":""user"",""mx_record"":null,""first_name"":null,""last_name"":null,""email_state"":""ok"",""email_sub_state"":""email_ok"",""verified_at"":""2026-02-21T10:00:00.000Z"",""did_you_mean"":null}]}";
+
+    private const string InvalidResponseJson = @"{""emails"":[{""address"":""bad@invalid.com"",""domain"":""invalid.com"",""canonical"":""bad"",""mx_record"":null,""first_name"":null,""last_name"":null,""email_state"":""email_invalid"",""email_sub_state"":""failed_smtp_check"",""verified_at"":""2026-02-21T10:00:00.000Z"",""did_you_mean"":null}]}";
+
+    private const string AcceptAllResponseJson = @"{""emails"":[{""address"":""risky@example.com"",""domain"":""example.com"",""canonical"":""risky"",""mx_record"":null,""first_name"":null,""last_name"":null,""email_state"":""accept_all"",""email_sub_state"":""email_ok"",""verified_at"":""2026-02-21T10:00:00.000Z"",""did_you_mean"":null}]}";
+
+    private const string UnknownResponseJson = @"{""emails"":[{""address"":""unknown@example.com"",""domain"":""example.com"",""canonical"":""unknown"",""mx_record"":null,""first_name"":null,""last_name"":null,""email_state"":""unknown"",""email_sub_state"":""unknown_error"",""verified_at"":null,""did_you_mean"":null}]}";
+
+    private const string SuggestionResponseJson = @"{""emails"":[{""address"":""user@gmial.com"",""domain"":""gmial.com"",""canonical"":""user"",""mx_record"":null,""first_name"":null,""last_name"":null,""email_state"":""email_invalid"",""email_sub_state"":""failed_smtp_check"",""verified_at"":""2026-02-21T10:00:00.000Z"",""did_you_mean"":""user@gmail.com""}]}";
+
+    private const string AccountResponseJson = @"{""email"":""team@company.com"",""name"":""Team Lead"",""uuid"":""a3828d19-1234-5678-9abc-def012345678"",""time_zone"":""America/New_York"",""is_admin_role"":true,""token"":""test_token"",""api_keys"":[],""account"":{""name"":""Company Inc"",""payment_plan"":""pro"",""users"":[]}}";
+
     #region Constructor Tests
 
     [Fact]
@@ -58,79 +70,53 @@ public class TruelistClientTests : IDisposable
     [Fact]
     public async Task ValidateAsync_ValidEmail_ReturnsValidResult()
     {
-        _handler.ResponseJson = @"{
-            ""state"": ""valid"",
-            ""sub_state"": ""ok"",
-            ""suggestion"": null,
-            ""free_email"": true,
-            ""role"": false,
-            ""disposable"": false
-        }";
+        _handler.ResponseJson = ValidResponseJson;
 
         using var client = CreateClient();
         var result = await client.ValidateAsync("user@example.com");
 
-        Assert.Equal("valid", result.State);
-        Assert.Equal("ok", result.SubState);
+        Assert.Equal("user@example.com", result.Email);
+        Assert.Equal("example.com", result.Domain);
+        Assert.Equal("user", result.Canonical);
+        Assert.Equal("ok", result.State);
+        Assert.Equal("email_ok", result.SubState);
         Assert.True(result.IsValid);
         Assert.False(result.IsInvalid);
-        Assert.True(result.IsFreeEmail);
-        Assert.False(result.IsRole);
         Assert.False(result.IsDisposable);
+        Assert.False(result.IsRole);
     }
 
     [Fact]
     public async Task ValidateAsync_InvalidEmail_ReturnsInvalidResult()
     {
-        _handler.ResponseJson = @"{
-            ""state"": ""invalid"",
-            ""sub_state"": ""failed_no_mailbox"",
-            ""suggestion"": null,
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
-        }";
+        _handler.ResponseJson = InvalidResponseJson;
 
         using var client = CreateClient();
         var result = await client.ValidateAsync("bad@invalid.com");
 
-        Assert.Equal("invalid", result.State);
-        Assert.Equal("failed_no_mailbox", result.SubState);
+        Assert.Equal("email_invalid", result.State);
+        Assert.Equal("failed_smtp_check", result.SubState);
         Assert.True(result.IsInvalid);
         Assert.False(result.IsValid);
     }
 
     [Fact]
-    public async Task ValidateAsync_RiskyEmail_ReturnsRiskyResult()
+    public async Task ValidateAsync_AcceptAllEmail_ReturnsAcceptAllResult()
     {
-        _handler.ResponseJson = @"{
-            ""state"": ""risky"",
-            ""sub_state"": ""accept_all"",
-            ""suggestion"": null,
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
-        }";
+        _handler.ResponseJson = AcceptAllResponseJson;
 
         using var client = CreateClient();
         var result = await client.ValidateAsync("risky@example.com");
 
-        Assert.Equal("risky", result.State);
-        Assert.True(result.IsRisky);
+        Assert.Equal("accept_all", result.State);
+        Assert.True(result.IsAcceptAll);
         Assert.False(result.IsValid);
     }
 
     [Fact]
     public async Task ValidateAsync_UnknownEmail_ReturnsUnknownResult()
     {
-        _handler.ResponseJson = @"{
-            ""state"": ""unknown"",
-            ""sub_state"": ""unknown"",
-            ""suggestion"": null,
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
-        }";
+        _handler.ResponseJson = UnknownResponseJson;
 
         using var client = CreateClient();
         var result = await client.ValidateAsync("unknown@example.com");
@@ -156,32 +142,24 @@ public class TruelistClientTests : IDisposable
     [Fact]
     public async Task ValidateAsync_SendsCorrectRequest()
     {
-        _handler.ResponseJson = @"{""state"":""valid"",""sub_state"":""ok"",""free_email"":false,""role"":false,""disposable"":false}";
+        _handler.ResponseJson = ValidResponseJson;
 
         using var client = CreateClient();
         await client.ValidateAsync("user@example.com");
 
         Assert.NotNull(_handler.LastRequest);
         Assert.Equal(HttpMethod.Post, _handler.LastRequest!.Method);
-        Assert.Contains("api/v1/verify", _handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("api/v1/verify_inline", _handler.LastRequest.RequestUri!.ToString());
+        Assert.Contains("email=user%40example.com", _handler.LastRequest.RequestUri!.ToString());
         Assert.Equal("Bearer", _handler.LastRequest.Headers.Authorization?.Scheme);
         Assert.Equal("test-api-key", _handler.LastRequest.Headers.Authorization?.Parameter);
-
-        var body = await _handler.LastRequest.Content!.ReadAsStringAsync();
-        Assert.Contains("user@example.com", body);
+        Assert.Null(_handler.LastRequest.Content);
     }
 
     [Fact]
     public async Task ValidateAsync_WithSuggestion_ReturnsSuggestion()
     {
-        _handler.ResponseJson = @"{
-            ""state"": ""invalid"",
-            ""sub_state"": ""failed_syntax_check"",
-            ""suggestion"": ""user@gmail.com"",
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
-        }";
+        _handler.ResponseJson = SuggestionResponseJson;
 
         using var client = CreateClient();
         var result = await client.ValidateAsync("user@gmial.com");
@@ -191,70 +169,37 @@ public class TruelistClientTests : IDisposable
 
     #endregion
 
-    #region FormValidateAsync Tests
-
-    [Fact]
-    public async Task FormValidateAsync_UsesFormApiKey()
-    {
-        _handler.ResponseJson = @"{""state"":""valid"",""sub_state"":""ok"",""free_email"":false,""role"":false,""disposable"":false}";
-
-        var options = new TruelistOptions { FormApiKey = "form-test-key" };
-        using var client = CreateClient(options);
-        await client.FormValidateAsync("user@example.com");
-
-        Assert.NotNull(_handler.LastRequest);
-        Assert.Equal("Bearer", _handler.LastRequest!.Headers.Authorization?.Scheme);
-        Assert.Equal("form-test-key", _handler.LastRequest.Headers.Authorization?.Parameter);
-        Assert.Contains("api/v1/form_verify", _handler.LastRequest.RequestUri!.ToString());
-    }
-
-    [Fact]
-    public async Task FormValidateAsync_NoFormApiKey_ThrowsInvalidOperationException()
-    {
-        using var client = CreateClient();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.FormValidateAsync("user@example.com"));
-    }
-
-    [Fact]
-    public async Task FormValidateAsync_NullEmail_ThrowsArgumentNullException()
-    {
-        var options = new TruelistOptions { FormApiKey = "form-test-key" };
-        using var client = CreateClient(options);
-        await Assert.ThrowsAsync<ArgumentNullException>(() => client.FormValidateAsync(null!));
-    }
-
-    #endregion
-
     #region GetAccountAsync Tests
 
     [Fact]
     public async Task GetAccountAsync_ReturnsAccountInfo()
     {
-        _handler.ResponseJson = @"{
-            ""email"": ""test@truelist.io"",
-            ""plan"": ""pro"",
-            ""credits"": 9542
-        }";
+        _handler.ResponseJson = AccountResponseJson;
 
         using var client = CreateClient();
         var account = await client.GetAccountAsync();
 
-        Assert.Equal("test@truelist.io", account.Email);
-        Assert.Equal("pro", account.Plan);
-        Assert.Equal(9542, account.Credits);
+        Assert.Equal("team@company.com", account.Email);
+        Assert.Equal("Team Lead", account.Name);
+        Assert.Equal("a3828d19-1234-5678-9abc-def012345678", account.Uuid);
+        Assert.Equal("America/New_York", account.TimeZone);
+        Assert.True(account.IsAdminRole);
+        Assert.NotNull(account.Account);
+        Assert.Equal("Company Inc", account.Account!.Name);
+        Assert.Equal("pro", account.Account.PaymentPlan);
     }
 
     [Fact]
     public async Task GetAccountAsync_SendsCorrectRequest()
     {
-        _handler.ResponseJson = @"{""email"":""t@t.io"",""plan"":""free"",""credits"":0}";
+        _handler.ResponseJson = AccountResponseJson;
 
         using var client = CreateClient();
         await client.GetAccountAsync();
 
         Assert.NotNull(_handler.LastRequest);
         Assert.Equal(HttpMethod.Get, _handler.LastRequest!.Method);
-        Assert.Contains("api/v1/account", _handler.LastRequest.RequestUri!.ToString());
+        Assert.EndsWith("me", _handler.LastRequest.RequestUri!.ToString());
         Assert.Equal("Bearer", _handler.LastRequest.Headers.Authorization?.Scheme);
         Assert.Equal("test-api-key", _handler.LastRequest.Headers.Authorization?.Parameter);
     }
@@ -283,17 +228,6 @@ public class TruelistClientTests : IDisposable
 
         using var client = CreateClient();
         await Assert.ThrowsAsync<AuthenticationException>(() => client.GetAccountAsync());
-    }
-
-    [Fact]
-    public async Task FormValidateAsync_401_ThrowsAuthenticationException()
-    {
-        _handler.ResponseStatusCode = HttpStatusCode.Unauthorized;
-        _handler.ResponseJson = @"{""error"":""unauthorized""}";
-
-        var options = new TruelistOptions { FormApiKey = "bad-key" };
-        using var client = CreateClient(options);
-        await Assert.ThrowsAsync<AuthenticationException>(() => client.FormValidateAsync("user@example.com"));
     }
 
     [Fact]
@@ -398,7 +332,7 @@ public class TruelistClientTests : IDisposable
     public async Task ValidateAsync_CancellationToken_Cancels()
     {
         _handler.Delay = TimeSpan.FromSeconds(5);
-        _handler.ResponseJson = @"{""state"":""valid"",""sub_state"":""ok"",""free_email"":false,""role"":false,""disposable"":false}";
+        _handler.ResponseJson = ValidResponseJson;
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
         using var client = CreateClient();
@@ -410,7 +344,7 @@ public class TruelistClientTests : IDisposable
     public async Task GetAccountAsync_CancellationToken_Cancels()
     {
         _handler.Delay = TimeSpan.FromSeconds(5);
-        _handler.ResponseJson = @"{""email"":""t@t.io"",""plan"":""free"",""credits"":0}";
+        _handler.ResponseJson = AccountResponseJson;
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
         using var client = CreateClient();
