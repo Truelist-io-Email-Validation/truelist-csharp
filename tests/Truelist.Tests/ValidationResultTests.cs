@@ -8,52 +8,52 @@ public class ValidationResultTests
     #region State Property Tests
 
     [Fact]
-    public void IsValid_WhenStateIsValid_ReturnsTrue()
+    public void IsValid_WhenStateIsOk_ReturnsTrue()
     {
-        var result = new ValidationResult { State = "valid" };
+        var result = new ValidationResult { State = "ok" };
         Assert.True(result.IsValid);
     }
 
     [Fact]
-    public void IsValid_WhenStateIsInvalid_ReturnsFalse()
+    public void IsValid_WhenStateIsEmailInvalid_ReturnsFalse()
     {
-        var result = new ValidationResult { State = "invalid" };
+        var result = new ValidationResult { State = "email_invalid" };
         Assert.False(result.IsValid);
     }
 
     [Fact]
     public void IsValid_CaseInsensitive()
     {
-        var result = new ValidationResult { State = "Valid" };
+        var result = new ValidationResult { State = "Ok" };
         Assert.True(result.IsValid);
     }
 
     [Fact]
-    public void IsInvalid_WhenStateIsInvalid_ReturnsTrue()
+    public void IsInvalid_WhenStateIsEmailInvalid_ReturnsTrue()
     {
-        var result = new ValidationResult { State = "invalid" };
+        var result = new ValidationResult { State = "email_invalid" };
         Assert.True(result.IsInvalid);
     }
 
     [Fact]
-    public void IsInvalid_WhenStateIsValid_ReturnsFalse()
+    public void IsInvalid_WhenStateIsOk_ReturnsFalse()
     {
-        var result = new ValidationResult { State = "valid" };
+        var result = new ValidationResult { State = "ok" };
         Assert.False(result.IsInvalid);
     }
 
     [Fact]
-    public void IsRisky_WhenStateIsRisky_ReturnsTrue()
+    public void IsAcceptAll_WhenStateIsAcceptAll_ReturnsTrue()
     {
-        var result = new ValidationResult { State = "risky" };
-        Assert.True(result.IsRisky);
+        var result = new ValidationResult { State = "accept_all" };
+        Assert.True(result.IsAcceptAll);
     }
 
     [Fact]
-    public void IsRisky_WhenStateIsValid_ReturnsFalse()
+    public void IsAcceptAll_WhenStateIsOk_ReturnsFalse()
     {
-        var result = new ValidationResult { State = "valid" };
-        Assert.False(result.IsRisky);
+        var result = new ValidationResult { State = "ok" };
+        Assert.False(result.IsAcceptAll);
     }
 
     [Fact]
@@ -64,109 +64,42 @@ public class ValidationResultTests
     }
 
     [Fact]
-    public void IsUnknown_WhenStateIsValid_ReturnsFalse()
+    public void IsUnknown_WhenStateIsOk_ReturnsFalse()
     {
-        var result = new ValidationResult { State = "valid" };
+        var result = new ValidationResult { State = "ok" };
         Assert.False(result.IsUnknown);
     }
 
     #endregion
 
-    #region IsValidEmail Tests
+    #region SubState Convenience Property Tests
 
     [Fact]
-    public void IsValidEmail_ValidState_ReturnsTrue()
+    public void IsDisposable_WhenSubStateIsDisposable_ReturnsTrue()
     {
-        var result = new ValidationResult { State = "valid" };
-        Assert.True(result.IsValidEmail());
-    }
-
-    [Fact]
-    public void IsValidEmail_InvalidState_ReturnsFalse()
-    {
-        var result = new ValidationResult { State = "invalid" };
-        Assert.False(result.IsValidEmail());
-    }
-
-    [Fact]
-    public void IsValidEmail_RiskyState_WithoutAllowRisky_ReturnsFalse()
-    {
-        var result = new ValidationResult { State = "risky" };
-        Assert.False(result.IsValidEmail());
-    }
-
-    [Fact]
-    public void IsValidEmail_RiskyState_WithAllowRisky_ReturnsTrue()
-    {
-        var result = new ValidationResult { State = "risky" };
-        Assert.True(result.IsValidEmail(allowRisky: true));
-    }
-
-    [Fact]
-    public void IsValidEmail_ValidState_WithAllowRisky_ReturnsTrue()
-    {
-        var result = new ValidationResult { State = "valid" };
-        Assert.True(result.IsValidEmail(allowRisky: true));
-    }
-
-    [Fact]
-    public void IsValidEmail_InvalidState_WithAllowRisky_ReturnsFalse()
-    {
-        var result = new ValidationResult { State = "invalid" };
-        Assert.False(result.IsValidEmail(allowRisky: true));
-    }
-
-    [Fact]
-    public void IsValidEmail_UnknownState_WithAllowRisky_ReturnsFalse()
-    {
-        var result = new ValidationResult { State = "unknown" };
-        Assert.False(result.IsValidEmail(allowRisky: true));
-    }
-
-    #endregion
-
-    #region Boolean Property Tests
-
-    [Fact]
-    public void IsFreeEmail_WhenTrue_ReturnsTrue()
-    {
-        var result = new ValidationResult { FreeEmail = true };
-        Assert.True(result.IsFreeEmail);
-    }
-
-    [Fact]
-    public void IsFreeEmail_WhenFalse_ReturnsFalse()
-    {
-        var result = new ValidationResult { FreeEmail = false };
-        Assert.False(result.IsFreeEmail);
-    }
-
-    [Fact]
-    public void IsRole_WhenTrue_ReturnsTrue()
-    {
-        var result = new ValidationResult { Role = true };
-        Assert.True(result.IsRole);
-    }
-
-    [Fact]
-    public void IsRole_WhenFalse_ReturnsFalse()
-    {
-        var result = new ValidationResult { Role = false };
-        Assert.False(result.IsRole);
-    }
-
-    [Fact]
-    public void IsDisposable_WhenTrue_ReturnsTrue()
-    {
-        var result = new ValidationResult { Disposable = true };
+        var result = new ValidationResult { SubState = "is_disposable" };
         Assert.True(result.IsDisposable);
     }
 
     [Fact]
-    public void IsDisposable_WhenFalse_ReturnsFalse()
+    public void IsDisposable_WhenSubStateIsEmailOk_ReturnsFalse()
     {
-        var result = new ValidationResult { Disposable = false };
+        var result = new ValidationResult { SubState = "email_ok" };
         Assert.False(result.IsDisposable);
+    }
+
+    [Fact]
+    public void IsRole_WhenSubStateIsRole_ReturnsTrue()
+    {
+        var result = new ValidationResult { SubState = "is_role" };
+        Assert.True(result.IsRole);
+    }
+
+    [Fact]
+    public void IsRole_WhenSubStateIsEmailOk_ReturnsFalse()
+    {
+        var result = new ValidationResult { SubState = "email_ok" };
+        Assert.False(result.IsRole);
     }
 
     #endregion
@@ -177,52 +110,67 @@ public class ValidationResultTests
     public void Deserialize_FullResponse_MapsAllFields()
     {
         var json = @"{
-            ""state"": ""valid"",
-            ""sub_state"": ""ok"",
-            ""suggestion"": ""user@gmail.com"",
-            ""free_email"": true,
-            ""role"": true,
-            ""disposable"": true
+            ""address"": ""user@example.com"",
+            ""domain"": ""example.com"",
+            ""canonical"": ""user"",
+            ""mx_record"": ""mx.example.com"",
+            ""first_name"": ""John"",
+            ""last_name"": ""Doe"",
+            ""email_state"": ""ok"",
+            ""email_sub_state"": ""email_ok"",
+            ""verified_at"": ""2026-02-21T10:00:00.000Z"",
+            ""did_you_mean"": ""user@gmail.com""
         }";
 
         var result = JsonSerializer.Deserialize<ValidationResult>(json);
 
         Assert.NotNull(result);
-        Assert.Equal("valid", result!.State);
-        Assert.Equal("ok", result.SubState);
+        Assert.Equal("user@example.com", result!.Email);
+        Assert.Equal("example.com", result.Domain);
+        Assert.Equal("user", result.Canonical);
+        Assert.Equal("mx.example.com", result.MxRecord);
+        Assert.Equal("John", result.FirstName);
+        Assert.Equal("Doe", result.LastName);
+        Assert.Equal("ok", result.State);
+        Assert.Equal("email_ok", result.SubState);
+        Assert.Equal("2026-02-21T10:00:00.000Z", result.VerifiedAt);
         Assert.Equal("user@gmail.com", result.Suggestion);
-        Assert.True(result.FreeEmail);
-        Assert.True(result.Role);
-        Assert.True(result.Disposable);
     }
 
     [Fact]
-    public void Deserialize_NullSuggestion_MapsCorrectly()
+    public void Deserialize_NullFields_MapsCorrectly()
     {
         var json = @"{
-            ""state"": ""valid"",
-            ""sub_state"": ""ok"",
-            ""suggestion"": null,
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
+            ""address"": ""user@example.com"",
+            ""domain"": ""example.com"",
+            ""canonical"": ""user"",
+            ""mx_record"": null,
+            ""first_name"": null,
+            ""last_name"": null,
+            ""email_state"": ""ok"",
+            ""email_sub_state"": ""email_ok"",
+            ""verified_at"": null,
+            ""did_you_mean"": null
         }";
 
         var result = JsonSerializer.Deserialize<ValidationResult>(json);
 
         Assert.NotNull(result);
-        Assert.Null(result!.Suggestion);
+        Assert.Null(result!.MxRecord);
+        Assert.Null(result.FirstName);
+        Assert.Null(result.LastName);
+        Assert.Null(result.VerifiedAt);
+        Assert.Null(result.Suggestion);
     }
 
     [Fact]
     public void Deserialize_MissingSuggestion_DefaultsToNull()
     {
         var json = @"{
-            ""state"": ""valid"",
-            ""sub_state"": ""ok"",
-            ""free_email"": false,
-            ""role"": false,
-            ""disposable"": false
+            ""address"": ""user@example.com"",
+            ""domain"": ""example.com"",
+            ""email_state"": ""ok"",
+            ""email_sub_state"": ""email_ok""
         }";
 
         var result = JsonSerializer.Deserialize<ValidationResult>(json);

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Truelist.Exceptions;
 
 namespace Truelist;
@@ -71,7 +71,7 @@ public class TruelistClient : IDisposable
     }
 
     /// <summary>
-    /// Validates an email address using the server-side validation endpoint.
+    /// Validates an email address using the inline verification endpoint.
     /// </summary>
     /// <param name="email">The email address to validate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -85,50 +85,23 @@ public class TruelistClient : IDisposable
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentNullException(nameof(email), "Email is required.");
 
-        var payload = JsonSerializer.Serialize(new { email }, JsonOptions);
-        var content = new StringContent(payload, Encoding.UTF8, "application/json");
+        var encodedEmail = Uri.EscapeDataString(email);
+        var path = $"api/v1/verify_inline?email={encodedEmail}";
 
         var response = await SendWithRetriesAsync(
-            () => CreateRequest(HttpMethod.Post, "api/v1/verify", _apiKey, content),
+            () => CreateRequest(HttpMethod.Post, path, _apiKey),
             cancellationToken
         );
 
-        return await DeserializeAsync<ValidationResult>(response, cancellationToken);
+        var wrapper = await DeserializeAsync<VerifyResponse>(response, cancellationToken);
+        if (wrapper.Emails == null || wrapper.Emails.Count == 0)
+            throw new TruelistException("API returned no email results.");
+
+        return wrapper.Emails[0];
     }
 
     /// <summary>
-    /// Validates an email address using the frontend form validation endpoint.
-    /// Requires <see cref="TruelistOptions.FormApiKey"/> to be set.
-    /// </summary>
-    /// <param name="email">The email address to validate.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The validation result.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when email is null or empty.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when FormApiKey is not configured.</exception>
-    /// <exception cref="AuthenticationException">Thrown when the form API key is invalid.</exception>
-    /// <exception cref="RateLimitException">Thrown when the rate limit is exceeded.</exception>
-    /// <exception cref="ApiException">Thrown when the API returns an unexpected error.</exception>
-    public async Task<ValidationResult> FormValidateAsync(string email, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentNullException(nameof(email), "Email is required.");
-
-        if (string.IsNullOrWhiteSpace(_options.FormApiKey))
-            throw new InvalidOperationException("FormApiKey must be set in TruelistOptions to use FormValidateAsync.");
-
-        var payload = JsonSerializer.Serialize(new { email }, JsonOptions);
-        var content = new StringContent(payload, Encoding.UTF8, "application/json");
-
-        var response = await SendWithRetriesAsync(
-            () => CreateRequest(HttpMethod.Post, "api/v1/form_verify", _options.FormApiKey, content),
-            cancellationToken
-        );
-
-        return await DeserializeAsync<ValidationResult>(response, cancellationToken);
-    }
-
-    /// <summary>
-    /// Retrieves account information including plan and remaining credits.
+    /// Retrieves account information.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The account information.</returns>
@@ -138,7 +111,7 @@ public class TruelistClient : IDisposable
     public async Task<AccountInfo> GetAccountAsync(CancellationToken cancellationToken = default)
     {
         var response = await SendWithRetriesAsync(
-            () => CreateRequest(HttpMethod.Get, "api/v1/account", _apiKey),
+            () => CreateRequest(HttpMethod.Get, "me", _apiKey),
             cancellationToken
         );
 
@@ -291,5 +264,14 @@ public class TruelistClient : IDisposable
         }
 
         _disposed = true;
+    }
+
+    /// <summary>
+    /// Internal wrapper for deserializing the verify_inline response.
+    /// </summary>
+    private class VerifyResponse
+    {
+        [JsonPropertyName("emails")]
+        public List<ValidationResult> Emails { get; set; } = new();
     }
 }

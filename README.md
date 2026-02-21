@@ -44,37 +44,37 @@ if (result.IsValid)
 ```csharp
 var result = await client.ValidateAsync("user@example.com");
 
-Console.WriteLine(result.State);       // "valid", "invalid", "risky", or "unknown"
-Console.WriteLine(result.SubState);    // "ok", "accept_all", "disposable_address", etc.
+Console.WriteLine(result.Email);       // "user@example.com"
+Console.WriteLine(result.Domain);      // "example.com"
+Console.WriteLine(result.State);       // "ok", "email_invalid", "accept_all", or "unknown"
+Console.WriteLine(result.SubState);    // "email_ok", "is_disposable", "is_role", etc.
 Console.WriteLine(result.IsValid);     // true
-Console.WriteLine(result.IsFreeEmail); // true
-Console.WriteLine(result.IsRole);      // false
 Console.WriteLine(result.IsDisposable);// false
+Console.WriteLine(result.IsRole);      // false
 ```
 
-### Check with Risky Allowed
+### Check Specific States
 
 ```csharp
 var result = await client.ValidateAsync("user@example.com");
 
-// Treat both "valid" and "risky" as acceptable
-if (result.IsValidEmail(allowRisky: true))
+if (result.IsValid)
 {
-    Console.WriteLine("Email is acceptable");
+    Console.WriteLine("Email is valid");
 }
-```
-
-### Form Validation (Frontend)
-
-For client-side validation with a form API key:
-
-```csharp
-var client = new TruelistClient("your-api-key", new TruelistOptions
+else if (result.IsAcceptAll)
 {
-    FormApiKey = "your-form-api-key"
-});
+    Console.WriteLine("Domain accepts all addresses");
+}
+else if (result.IsInvalid)
+{
+    Console.WriteLine("Email is invalid");
 
-var result = await client.FormValidateAsync("user@example.com");
+    if (result.Suggestion != null)
+    {
+        Console.WriteLine($"Did you mean: {result.Suggestion}?");
+    }
+}
 ```
 
 ### Account Info
@@ -82,9 +82,12 @@ var result = await client.FormValidateAsync("user@example.com");
 ```csharp
 var account = await client.GetAccountAsync();
 
-Console.WriteLine(account.Email);   // "you@company.com"
-Console.WriteLine(account.Plan);    // "pro"
-Console.WriteLine(account.Credits); // 9542
+Console.WriteLine(account.Email);                // "you@company.com"
+Console.WriteLine(account.Name);                 // "Your Name"
+Console.WriteLine(account.Uuid);                 // "a3828d19-..."
+Console.WriteLine(account.TimeZone);             // "America/New_York"
+Console.WriteLine(account.IsAdminRole);          // true
+Console.WriteLine(account.Account?.PaymentPlan); // "pro"
 ```
 
 ### CancellationToken Support
@@ -106,7 +109,6 @@ var client = new TruelistClient("your-api-key", new TruelistOptions
     BaseUrl = "https://api.truelist.io",    // API base URL
     Timeout = TimeSpan.FromSeconds(10),     // Request timeout
     MaxRetries = 2,                         // Retry count for 429/5xx errors
-    FormApiKey = "your-form-key",           // Form API key for FormValidateAsync
 });
 ```
 
@@ -115,7 +117,6 @@ var client = new TruelistClient("your-api-key", new TruelistOptions
 | `BaseUrl` | `https://api.truelist.io` | API base URL |
 | `Timeout` | `10s` | HTTP request timeout |
 | `MaxRetries` | `2` | Max retries for 429 and 5xx errors. Auth errors (401) are never retried. |
-| `FormApiKey` | `null` | Form API key for `FormValidateAsync` |
 
 ## Error Handling
 
@@ -206,43 +207,50 @@ public class EmailService
     public async Task<bool> IsEmailValidAsync(string email)
     {
         var result = await _truelist.ValidateAsync(email);
-        return result.IsValidEmail(allowRisky: true);
+        return result.IsValid;
     }
 }
 ```
 
 ## Validation Result Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `State` | `string` | Validation state: `valid`, `invalid`, `risky`, `unknown` |
-| `SubState` | `string` | Detailed sub-state |
-| `Suggestion` | `string?` | Suggested email correction |
-| `FreeEmail` | `bool` | From a free email provider |
-| `Role` | `bool` | Role-based address (info@, support@) |
-| `Disposable` | `bool` | Disposable email provider |
-| `IsValid` | `bool` | `State == "valid"` |
-| `IsInvalid` | `bool` | `State == "invalid"` |
-| `IsRisky` | `bool` | `State == "risky"` |
-| `IsUnknown` | `bool` | `State == "unknown"` |
-| `IsFreeEmail` | `bool` | Alias for `FreeEmail` |
-| `IsRole` | `bool` | Alias for `Role` |
-| `IsDisposable` | `bool` | Alias for `Disposable` |
+| Property | Type | JSON Field | Description |
+|----------|------|------------|-------------|
+| `Email` | `string` | `address` | The validated email address |
+| `Domain` | `string` | `domain` | The email domain |
+| `Canonical` | `string?` | `canonical` | The local part of the email |
+| `MxRecord` | `string?` | `mx_record` | MX record for the domain |
+| `FirstName` | `string?` | `first_name` | First name if available |
+| `LastName` | `string?` | `last_name` | Last name if available |
+| `State` | `string` | `email_state` | State: `ok`, `email_invalid`, `accept_all`, `unknown` |
+| `SubState` | `string` | `email_sub_state` | Detailed sub-state |
+| `VerifiedAt` | `string?` | `verified_at` | Verification timestamp |
+| `Suggestion` | `string?` | `did_you_mean` | Suggested email correction |
+| `IsValid` | `bool` | - | `State == "ok"` |
+| `IsInvalid` | `bool` | - | `State == "email_invalid"` |
+| `IsAcceptAll` | `bool` | - | `State == "accept_all"` |
+| `IsUnknown` | `bool` | - | `State == "unknown"` |
+| `IsDisposable` | `bool` | - | `SubState == "is_disposable"` |
+| `IsRole` | `bool` | - | `SubState == "is_role"` |
+
+### States
+
+| State | Description |
+|-------|-------------|
+| `ok` | Email is valid |
+| `email_invalid` | Email is invalid |
+| `accept_all` | Domain accepts all addresses |
+| `unknown` | Could not determine validity |
 
 ### Sub-states
 
 | Sub-state | Description |
 |-----------|-------------|
-| `ok` | Email is valid |
-| `accept_all` | Domain accepts all addresses |
-| `disposable_address` | Disposable email provider |
-| `role_address` | Role-based address |
-| `failed_mx_check` | No valid MX records |
-| `failed_spam_trap` | Known spam trap |
-| `failed_no_mailbox` | Mailbox does not exist |
-| `failed_greylisted` | Server temporarily rejected |
-| `failed_syntax_check` | Invalid email syntax |
-| `unknown` | Could not determine validity |
+| `email_ok` | Email is valid |
+| `is_disposable` | Disposable email provider |
+| `is_role` | Role-based address |
+| `failed_smtp_check` | SMTP check failed |
+| `unknown_error` | Could not determine validity |
 
 ## Testing
 
@@ -254,7 +262,7 @@ public class MockHandler : HttpMessageHandler
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var json = """{"state":"valid","sub_state":"ok","free_email":false,"role":false,"disposable":false}""";
+        var json = """{"emails":[{"address":"user@example.com","domain":"example.com","canonical":"user","mx_record":null,"first_name":null,"last_name":null,"email_state":"ok","email_sub_state":"email_ok","verified_at":"2026-02-21T10:00:00.000Z","did_you_mean":null}]}""";
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")

@@ -20,9 +20,4 @@ public class TruelistOptions
     /// Auth errors (401) are never retried.
     /// </summary>
     public int MaxRetries { get; set; } = 2;
-
-    /// <summary>
-    /// Form API key for frontend validation via <see cref="TruelistClient.FormValidateAsync"/>.
-    /// </summary>
-    public string? FormApiKey { get; set; }
 }
