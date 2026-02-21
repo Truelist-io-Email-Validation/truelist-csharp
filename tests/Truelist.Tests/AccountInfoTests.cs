@@ -9,54 +9,58 @@ public class AccountInfoTests
     public void Deserialize_FullResponse_MapsAllFields()
     {
         var json = @"{
-            ""email"": ""user@truelist.io"",
-            ""plan"": ""pro"",
-            ""credits"": 9542
+            ""email"": ""team@company.com"",
+            ""name"": ""Team Lead"",
+            ""uuid"": ""a3828d19-1234-5678-9abc-def012345678"",
+            ""time_zone"": ""America/New_York"",
+            ""is_admin_role"": true,
+            ""token"": ""test_token"",
+            ""api_keys"": [],
+            ""account"": {
+                ""name"": ""Company Inc"",
+                ""payment_plan"": ""pro"",
+                ""users"": []
+            }
         }";
 
         var result = JsonSerializer.Deserialize<AccountInfo>(json);
 
         Assert.NotNull(result);
-        Assert.Equal("user@truelist.io", result!.Email);
-        Assert.Equal("pro", result.Plan);
-        Assert.Equal(9542, result.Credits);
+        Assert.Equal("team@company.com", result!.Email);
+        Assert.Equal("Team Lead", result.Name);
+        Assert.Equal("a3828d19-1234-5678-9abc-def012345678", result.Uuid);
+        Assert.Equal("America/New_York", result.TimeZone);
+        Assert.True(result.IsAdminRole);
+        Assert.NotNull(result.Account);
+        Assert.Equal("Company Inc", result.Account!.Name);
+        Assert.Equal("pro", result.Account.PaymentPlan);
     }
 
     [Fact]
-    public void Deserialize_ZeroCredits_MapsCorrectly()
+    public void Deserialize_MinimalResponse_MapsCorrectly()
     {
         var json = @"{
-            ""email"": ""user@truelist.io"",
-            ""plan"": ""free"",
-            ""credits"": 0
+            ""email"": ""user@example.com"",
+            ""name"": ""User"",
+            ""uuid"": ""abc-123"",
+            ""time_zone"": ""UTC"",
+            ""is_admin_role"": false
         }";
 
         var result = JsonSerializer.Deserialize<AccountInfo>(json);
 
         Assert.NotNull(result);
-        Assert.Equal(0, result!.Credits);
-    }
-
-    [Fact]
-    public void Deserialize_LargeCredits_MapsCorrectly()
-    {
-        var json = @"{
-            ""email"": ""enterprise@truelist.io"",
-            ""plan"": ""enterprise"",
-            ""credits"": 1000000
-        }";
-
-        var result = JsonSerializer.Deserialize<AccountInfo>(json);
-
-        Assert.NotNull(result);
-        Assert.Equal(1000000, result!.Credits);
+        Assert.Equal("user@example.com", result!.Email);
+        Assert.False(result.IsAdminRole);
+        Assert.Null(result.Account);
     }
 
     [Fact]
     public void Record_Equality_Works()
     {
-        var a = new AccountInfo { Email = "a@b.com", Plan = "pro", Credits = 100 };
-        var b = new AccountInfo { Email = "a@b.com", Plan = "pro", Credits = 100 };
+        var account = new AccountDetails { Name = "Co", PaymentPlan = "pro" };
+        var a = new AccountInfo { Email = "a@b.com", Name = "A", Uuid = "1", TimeZone = "UTC", IsAdminRole = false, Account = account };
+        var b = new AccountInfo { Email = "a@b.com", Name = "A", Uuid = "1", TimeZone = "UTC", IsAdminRole = false, Account = account };
 
         Assert.Equal(a, b);
     }
@@ -64,8 +68,8 @@ public class AccountInfoTests
     [Fact]
     public void Record_Inequality_Works()
     {
-        var a = new AccountInfo { Email = "a@b.com", Plan = "pro", Credits = 100 };
-        var b = new AccountInfo { Email = "a@b.com", Plan = "pro", Credits = 200 };
+        var a = new AccountInfo { Email = "a@b.com", Name = "A", Uuid = "1" };
+        var b = new AccountInfo { Email = "a@b.com", Name = "B", Uuid = "1" };
 
         Assert.NotEqual(a, b);
     }
@@ -76,7 +80,10 @@ public class AccountInfoTests
         var info = new AccountInfo();
 
         Assert.Equal(string.Empty, info.Email);
-        Assert.Equal(string.Empty, info.Plan);
-        Assert.Equal(0, info.Credits);
+        Assert.Equal(string.Empty, info.Name);
+        Assert.Equal(string.Empty, info.Uuid);
+        Assert.Equal(string.Empty, info.TimeZone);
+        Assert.False(info.IsAdminRole);
+        Assert.Null(info.Account);
     }
 }
