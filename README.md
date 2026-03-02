@@ -1,6 +1,10 @@
 # Truelist C# SDK
 
+[![Free tier](https://img.shields.io/badge/free_plan-100_validations-4A7C59?style=flat-square)](https://truelist.io/pricing)
 Official C# SDK for the [Truelist](https://truelist.io) email validation API.
+
+> **Start free** — 100 validations + 10 enhanced credits, no credit card required.
+> [Get your API key →](https://app.truelist.io/signup?utm_source=github&utm_medium=readme&utm_campaign=free-plan&utm_content=truelist-csharp)
 
 ## Installation
 
@@ -282,6 +286,10 @@ var client = new TruelistClient("test-key", new TruelistOptions(), httpClient);
 - .NET 6.0+, .NET 8.0+, or .NET Standard 2.1
 - No external dependencies (uses built-in `System.Net.Http` and `System.Text.Json`)
 
+
+## Getting Started
+
+Sign up for a [free Truelist account](https://app.truelist.io/signup?utm_source=github&utm_medium=readme&utm_campaign=free-plan&utm_content=truelist-csharp) to get your API key. The free plan includes 100 validations and 10 enhanced credits — no credit card required.
 ## License
 
 MIT
